@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lunch · Tsim Sha Tsui</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #17150f;
+    --bg-card: #201d17;
+    --bg-soft: #26221a;
+    --text: #f3ede1;
+    --muted: #9c9385;
+    --accent: #e07a52;
+    --accent-soft: #3a2a20;
+    --border: #332e25;
+    --border-soft: #2a251d;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 8px 32px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 56px 24px 80px;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  h1 {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    font-size: 56px;
+    font-weight: 400;
+    letter-spacing: -2px;
+    line-height: 1;
+    margin-bottom: 14px;
+    color: var(--text);
+  }
+  h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+  .subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    font-weight: 500;
+  }
+  .filters {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 24px 0 16px;
+  }
+  .pill {
+    padding: 7px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    transition: all 0.2s ease;
+    font-family: inherit;
+    letter-spacing: 0.2px;
+  }
+  .pill:hover { color: var(--text); border-color: var(--text); }
+  .pill.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+  .wheel-wrap {
+    position: relative;
+    width: min(540px, 92vw);
+    aspect-ratio: 1;
+    margin: 32px auto;
+  }
+  canvas#wheel { width: 100%; height: 100%; display: block; }
+  .pointer {
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 24px solid var(--text);
+    z-index: 10;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.12));
+  }
+  .spin-btn {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 86px; height: 86px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1.5px solid var(--text);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    cursor: pointer;
+    z-index: 5;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.25s ease;
+    font-family: inherit;
+  }
+  .spin-btn:hover {
+    background: var(--text);
+    color: var(--bg);
+    transform: translate(-50%, -50%) scale(1.03);
+  }
+  .spin-btn:active {
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  .spin-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .result { margin-top: 32px; min-height: 100px; }
+  .placeholder {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 16px;
+    font-size: 14px;
+    font-style: italic;
+  }
+  .result-card {
+    background: var(--bg-card);
+    border-radius: 6px;
+    padding: 36px 32px 28px;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid var(--border-soft);
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .result-pick-label {
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+  .result-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 36px;
+    font-weight: 400;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+  .result-title-en {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 17px;
+    color: var(--muted);
+    font-style: italic;
+    margin-bottom: 18px;
+    font-weight: 400;
+  }
+  .result-cuisine {
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 20px;
+    letter-spacing: 0.2px;
+  }
+  .result-pills {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .rpill {
+    background: var(--bg-soft);
+    color: var(--text);
+    padding: 5px 11px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .rpill strong { font-weight: 600; color: var(--accent); }
+  .result-address {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin: 12px 0;
+    font-style: italic;
+  }
+  .result-note {
+    color: var(--accent);
+    font-size: 12.5px;
+    font-style: italic;
+    margin: 12px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .action-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 9px 18px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+  }
+  .btn:hover {
+    border-color: var(--text);
+    background: var(--text);
+    color: var(--bg);
+  }
+  .btn-primary {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+  .btn-primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .legend {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  .legend summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    user-select: none;
+    list-style: none;
+    font-weight: 500;
+    text-align: center;
+  }
+  .legend summary:hover { color: var(--text); }
+  .legend-list {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 4px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: background 0.2s ease;
+  }
+  .legend-item:hover { background: var(--bg-soft); }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .legend-name {
+    font-weight: 500;
+    color: var(--text);
+    font-size: 13px;
+  }
+  .legend-meta {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 1px;
+  }
+  .legend-item.user-added .legend-name::after {
+    content: " · your pick";
+    color: var(--accent);
+    font-style: italic;
+    font-size: 11px;
+  }
+  .user-tag {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-left: 6px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 56px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  footer a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border); }
+  .filter-row { margin-bottom: 4px; }
+  .filter-row .filters { margin: 0 0 8px; }
+  .add-section { text-align: center; margin: 8px 0 24px; }
+  .add-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    transition: color 0.2s ease;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: var(--border);
+  }
+  .add-btn:hover { color: var(--text); text-decoration-color: var(--text); }
+  .form-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 28px;
+    margin: 16px auto 0;
+    text-align: left;
+    max-width: 520px;
+    display: none;
+    box-shadow: var(--shadow-md);
+    animation: fadeUp 0.3s ease;
+  }
+  .form-card.open { display: block; }
+  .form-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 22px;
+    font-weight: 400;
+    margin-bottom: 20px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-field { display: flex; flex-direction: column; gap: 6px; }
+  .field-hint {
+    font-size: 12px;
+    color: var(--accent);
+    min-height: 14px;
+    letter-spacing: 0.2px;
+  }
+  .field-hint.muted { color: var(--muted); }
+  .form-field label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+  }
+  .form-field input,
+  .form-field select {
+    background: var(--bg);
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 0;
+    border-radius: 0;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s ease;
+  }
+  .form-field input:focus,
+  .form-field select:focus {
+    outline: none;
+    border-bottom-color: var(--text);
+  }
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Where to <em>lunch</em>?</h1>
+    <p class="subtitle">Tsim Sha Tsui · 尖沙咀 · <span id="count">10</span> restaurants nearby</p>
+  </header>
+
+  <div class="filter-row">
+    <div class="filters" id="distFilters">
+      <div class="pill" data-dist="350">very nearby (≤ 350 m) 超近</div>
+      <div class="pill active" data-dist="500">nearby (≤ 500 m) 附近</div>
+      <div class="pill" data-gt="500">further (> 500 m) 較遠</div>
+      <div class="pill" data-dist="99999999">all distance 全部距離</div>
+    </div>
+    <div class="filters" id="priceFilters">
+      <div class="pill" data-maxprice="100">normal (≤ $100) 普通</div>
+      <div class="pill active" data-maxprice="200">moderate (≤ $200) 偏貴</div>
+      <div class="pill" data-maxprice="99999">all price range 全部價位</div>
+    </div>
+  </div>
+
+  <div class="add-section">
+    <button class="add-btn" id="addBtn">+ Add your own restaurant · 加入自己的餐廳</button>
+    <button class="add-btn" id="clearBtn" style="display:none">Clear my added spots · 清除自訂 (<span id="clearCount">0</span>)</button>
+    <div class="form-card" id="addForm">
+      <div class="form-title">Add a restaurant · 加入餐廳</div>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label>Google Maps link · 貼上 Google 地圖連結 (auto-fills name & distance)</label>
+          <input type="url" id="fGmapUrl" placeholder="https://www.google.com/maps/place/...">
+          <div class="field-hint" id="gmapHint"></div>
+        </div>
+        <div class="form-field full">
+          <label>Name 名稱 * (中文或英文)</label>
+          <input type="text" id="fNameZh" placeholder="例: 翠華餐廳 Tsui Wah">
+        </div>
+        <div class="form-field">
+          <label>Cuisine 菜式</label>
+          <input type="text" id="fCuisine" placeholder="港式 / Thai / 粵菜">
+        </div>
+        <div class="form-field">
+          <label>Price 價錢 *</label>
+          <select id="fPrice">
+            <option value="<$100">≤ $100</option>
+            <option value="$100-200" selected>$100 – $200</option>
+            <option value="$201+">&gt; $200</option>
+          </select>
+        </div>
+        <div class="form-field full">
+          <label>OpenRice link 開飯喇連結 (optional)</label>
+          <input type="url" id="fOrUrl" placeholder="https://www.openrice.com/zh/hongkong/r-...">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="fCancel">Cancel 取消</button>
+        <button class="btn btn-primary" id="fSubmit">Add 加入</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wheel-wrap">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="540" height="540"></canvas>
+    <button id="spin" class="spin-btn">SPIN</button>
+  </div>
+
+  <div id="result" class="result">
+    <div class="placeholder">Press SPIN to pick your lunch · 按 SPIN 揀午餐</div>
+  </div>
+
+  <details class="legend">
+    <summary>Show all restaurants on the wheel · 顯示全部餐廳</summary>
+    <div id="legendList" class="legend-list"></div>
+  </details>
+
+  <footer>
+    Restaurant data from <a href="https://www.openrice.com/zh/hongkong" target="_blank" rel="noopener">OpenRice 開飯喇</a> · distances are approximate walking distances 距離為大約步行距離
+  </footer>
+</div>
+
+<script>
+// ---------- Restaurant data ----------
+// Price bucket: "<$100" | "$100-200" | "$201+"
+const FALLBACK_RESTAURANTS = [
+  {"name":"鐘路","nameEn":"Jong Ro Korean","short":"鐘路","cuisine":"韓國菜 Korean BBQ","price":"<$100","distM":97,"gmapUrl":"https://maps.app.goo.gl/9BY2mFe926rPd1mr5"},
+  {"name":"金二少冰室","nameEn":"Kam Yee Siu","short":"金二少","cuisine":"港式冰室 HK cafe","price":"<$100","distM":48,"gmapUrl":"https://maps.app.goo.gl/8H7a9115q4peKPMfA"},
+  {"name":"Plato","nameEn":"Plato Cafe","short":"Plat","cuisine":"意式 / cafe Italian","price":"<$100","distM":29,"gmapUrl":"https://maps.app.goo.gl/Z3D6ApFLmBHUHcgC6"},
+  {"name":"富豪會","nameEn":"Fu Ho Wui","short":"富豪","cuisine":"港式 Cantonese","price":"<$100","distM":42,"gmapUrl":"https://maps.app.goo.gl/C5AzUgxQX3XFBo3i6"},
+  {"name":"Taste Well","short":"Tast","cuisine":"Cafe / western","price":"$100-200","distM":42,"gmapUrl":"https://maps.app.goo.gl/Rs7MBfAoZSfJtWb46"},
+  {"name":"點心到","nameEn":"Dim Sum Here","short":"點到","cuisine":"點心 Dim sum","price":"<$100","distM":41,"gmapUrl":"https://maps.app.goo.gl/iR5yHdis9Nd2YuHe9"},
+  {"name":"越萊","nameEn":"Pho Bo","short":"越萊","cuisine":"越南菜 Vietnamese pho","price":"<$100","distM":28,"gmapUrl":"https://maps.app.goo.gl/Urn7UZNggwCqMno79"},
+  {"name":"The Jungle","short":"Jung","cuisine":"尼泊爾菜 Nepalese","price":"$100-200","distM":47,"gmapUrl":"https://maps.app.goo.gl/Butgi8ewTWEyMi2VA"},
+  {"name":"上海點心","nameEn":"Shanghai Dimsum","short":"滬點","cuisine":"滬菜 Shanghai dim sum","price":"<$100","distM":162,"gmapUrl":"https://maps.app.goo.gl/GXmaJGSijQPHsDct6"},
+  {"name":"秘","nameEn":"Secret Chefs","short":"秘","cuisine":"私房菜 fusion","price":"<$100","distM":185,"gmapUrl":"https://maps.app.goo.gl/cJZDYGziD47eqodX6"},
+  {"name":"金銀泰","nameEn":"Thaweesab Thai","short":"金銀","cuisine":"泰國菜 Thai","price":"<$100","distM":137,"gmapUrl":"https://maps.app.goo.gl/Fb3nuv5BgcaNVmR1A"},
+  {"name":"牛丼丼","nameEn":"Gyudon Don","short":"牛丼","cuisine":"日式丼飯 Gyudon","price":"<$100","distM":219,"gmapUrl":"https://maps.app.goo.gl/RadDAztfAVTkmBLQ7"},
+  {"name":"泰灜","nameEn":"Thai-In","short":"泰灜","cuisine":"泰國菜 Thai","price":"$100-200","distM":174,"gmapUrl":"https://maps.app.goo.gl/8ACNw7h7TibaUfwQ6"},
+  {"name":"劉興記","nameEn":"Lau Hing Kee","short":"劉興","cuisine":"滬式生煎包 Pan-fried buns","price":"<$100","distM":166,"gmapUrl":"https://maps.app.goo.gl/tv8jo7HXE6aqffqH6"},
+  {"name":"松屋","nameEn":"Matsuya","short":"松屋","cuisine":"日式牛丼 Gyudon","price":"<$100","distM":154,"gmapUrl":"https://maps.app.goo.gl/Eurcqm5CbMLumMt8A"},
+  {"name":"はま寿司","nameEn":"Hama Sushi","short":"Hama","cuisine":"日式壽司 Sushi","price":"$100-200","distM":248,"gmapUrl":"https://maps.app.goo.gl/sdwBqYzUScuh1K4N8"},
+  {"name":"雞少雞飯","nameEn":"Young Chick & Rice","short":"雞少","cuisine":"雞飯 Chicken rice","price":"<$100","distM":206,"gmapUrl":"https://maps.app.goo.gl/B9MR63wwkiXgwrRo9"},
+  {"name":"江記燒鵝","nameEn":"Kong Kee Roast Goose","short":"江記","cuisine":"燒味 Roast goose","price":"<$100","distM":208,"gmapUrl":"https://maps.app.goo.gl/HqbaY9ppaUHekNnM7"},
+  {"name":"霸嗎拉麵","nameEn":"Bari-Uma Ramen","short":"霸嗎","cuisine":"日式拉麵 Ramen","price":"<$100","distM":467,"gmapUrl":"https://maps.app.goo.gl/h9VxzGQj25ombUQg6"},
+  {"name":"養心閣","nameEn":"Yeung Sum Kok","short":"養心","cuisine":"港式 Cantonese","price":"<$100","distM":564,"gmapUrl":"https://maps.app.goo.gl/bu5w429eCSrFidYNA"},
+  {"name":"金凡潮汕菜","nameEn":"Kam Fan Chaoshan","short":"金凡","cuisine":"潮汕菜 Chaoshan","price":"<$100","distM":609,"gmapUrl":"https://maps.app.goo.gl/zkemUUqiJzMiEAdZ9"},
+  {"name":"水門雞飯","nameEn":"Water Gate Chicken Rice","short":"水門","cuisine":"泰式海南雞飯 Thai chicken rice","price":"<$100","distM":599,"gmapUrl":"https://maps.app.goo.gl/ArVAuWQ2RN2cJKUB7"},
+  {"name":"無限ラーメン","nameEn":"Mugen Ramen","short":"無限","cuisine":"日式拉麵 Ramen","price":"$100-200","distM":585,"gmapUrl":"https://maps.app.goo.gl/Wz2f1aHYGzeCDLpm8"},
+  {"name":"Passepartout","short":"Pass","cuisine":"西式 Brunch & coffee","price":"$201+","distM":194,"splurge":true,"gmapUrl":"https://maps.app.goo.gl/HDAsF7zgjHK8ZMj58"},
+  {"name":"三田製麺所","nameEn":"Mita Seimen-sho","short":"三田","cuisine":"日式沾麵 Tsukemen","price":"$100-200","distM":696,"splurge":true,"gmapUrl":"https://maps.app.goo.gl/Jjiu7iAgQd7wRyP38"},
+  {"name":"海陸空 JJANG","nameEn":"Hansik Jjang","short":"海陸","cuisine":"韓國菜 Korean BBQ","price":"$100-200","distM":656,"splurge":true,"gmapUrl":"https://maps.app.goo.gl/KU1smUVmyeyqqRBE9"},
+  {"name":"火土燒肉","nameEn":"Hearth","short":"火土","cuisine":"日式燒肉 Yakiniku","price":"$100-200","distM":761,"splurge":true,"gmapUrl":"https://maps.app.goo.gl/HJfWYwnhdCMqnq1Q9"},
+  {"name":"幸運茶點","nameEn":"Lucky Dim Sum","short":"幸運","cuisine":"點心 Dim sum","price":"<$100","distM":199,"gmapUrl":"https://maps.app.goo.gl/dVW8jo2dK1Lg3q5k6"},
+  {"name":"快樂蜂","nameEn":"Jollibee","short":"快樂蜂","cuisine":"快餐 Fast food","price":"<$100","distM":205,"gmapUrl":"https://maps.app.goo.gl/5yzFwHdBtRBicJzRA"}
+];
+
+// API endpoint for live restaurant list. The Mendix server (port 8000) holds
+// the master copy; this page falls back to FALLBACK_RESTAURANTS if the API
+// is unreachable.
+const LUNCH_API = 'http://localhost:8000/api/lunch-restaurants';
+
+// ---------- State ----------
+// `restaurants` is the live list from the Mendix server once loadFromApi() resolves.
+// FALLBACK_RESTAURANTS is only used until that initial fetch completes (or if
+// the API is unreachable). User-added rows already live in the DB.
+let restaurants = [...FALLBACK_RESTAURANTS];
+
+let currentList = [...restaurants];
+let currentRotation = 0; // radians
+let spinning = false;
+let maxDistM = 500;
+let maxPrice = 200;
+let lastResultIndex = -1;
+
+// ---------- Colors (muted, sophisticated palette) ----------
+const palette = [
+  '#b94c2d', '#4a6741', '#2c4a52', '#d4a574', '#8b5a3c',
+  '#6b8e7f', '#a08e7a', '#5c7060', '#c8a882', '#7a8471',
+  '#b58c5a', '#4a4a4a', '#a8806c', '#5b7553', '#8e6b4e',
+  '#b39d68', '#3d5a5b', '#9c8062', '#6a4a3c', '#7a8b6e',
+  '#c0986b', '#5a4a3a', '#a89270', '#4a5a4a', '#8a7a5a',
+  '#5a3a2a'
+];
+const getColor = i => palette[i % palette.length];
+
+// ---------- Canvas setup ----------
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const spinBtn = document.getElementById('spin');
+const resultEl = document.getElementById('result');
+const legendListEl = document.getElementById('legendList');
+const countEl = document.getElementById('count');
+
+// ---------- Drawing ----------
+function luminance(hex) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+function drawWheel() {
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+  const R = 270;
+  ctx.clearRect(0, 0, W, H);
+
+  const N = currentList.length;
+  if (N === 0) {
+    ctx.fillStyle = '#9c9385';
+    ctx.font = "italic 18px 'Fraunces', Georgia, serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No restaurants in range', cx, cy);
+    return;
+  }
+
+  const segAngle = (2 * Math.PI) / N;
+
+  // Draw each segment
+  for (let i = 0; i < N; i++) {
+    const a0 = i * segAngle + currentRotation - Math.PI / 2;
+    const a1 = (i + 1) * segAngle + currentRotation - Math.PI / 2;
+
+    const color = getColor(i);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // Subtle highlight on the winner
+    if (i === lastResultIndex) {
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fill();
+    }
+  }
+
+  // Thin light outer rim
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+  ctx.strokeStyle = 'rgba(243,237,225,0.22)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Labels — full name, single-row when possible, wrap only for very long names.
+  // Labels are placed at R*0.7 (mid-wheel, between hub and rim) so they don't crowd the rim.
+  const R_LABEL = R * 0.7;
+  const segChordPx = 2 * R_LABEL * Math.sin(segAngle / 2);
+
+  // Approx visual width per char (em units):
+  //   fullwidth CJK / Hiragana / Hangul ≈ 1.0
+  //   Katakana / halfwidth ≈ 0.7
+  //   ASCII ≈ 0.55
+  const visualW = s => {
+    let w = 0;
+    for (const c of s) {
+      w += /[\u30A0-\u30FF\uFF65-\uFF9F]/.test(c) ? 0.7
+         : /[\u3000-\u303F\u3040-\u309F\u3400-\u4DBF\u4E00-\u9FFF\uFF00-\uFF64\uFFA0-\uFFEF\uAC00-\uD7AF]/.test(c) ? 1.0
+         : 0.55;
+    }
+    return w;
+  };
+  // Wrap text into ≤ 3 lines, each ≤ maxEm em wide. Names that fit in 1 line stay 1 line.
+  const wrapText = (text, maxEm) => {
+    const lines = [''];
+    for (const ch of text) {
+      const i = lines.length - 1;
+      if (lines[i] && visualW(lines[i]) + visualW(ch) > maxEm && lines.length < 3) {
+        lines.push(ch);
+      } else {
+        lines[i] += ch;
+      }
+    }
+    return lines;
+  };
+
+  // Budget at base 9px font. At R_LABEL=R*0.7 (~41px arc) this gives ~4.3 em/line so 4-char CJK
+  // names still fit on 1 row; longer names wrap to 2.
+  const maxEm = (segChordPx / 9) * 0.95;
+
+  for (let i = 0; i < N; i++) {
+    const mid = (i + 0.5) * segAngle + currentRotation - Math.PI / 2;
+    const x = cx + R_LABEL * Math.cos(mid);
+    const y = cy + R_LABEL * Math.sin(mid);
+
+    ctx.save();
+    ctx.translate(x, y);
+    let rot = mid;
+    while (rot > Math.PI / 2) rot -= Math.PI;
+    while (rot < -Math.PI / 2) rot += Math.PI;
+    ctx.rotate(rot);
+
+    const color = getColor(i);
+    const lum = luminance(color);
+    const textColor = lum > 0.5 ? '#1a1a1a' : '#ffffff';
+
+    const item = currentList[i];
+    const labelText = item.name || item.short || '';
+    const lines = wrapText(labelText, maxEm);
+    const maxLineEm = Math.max(...lines.map(visualW), 0.5);
+    const fontSize = Math.max(9, Math.min(11, Math.floor(segChordPx * 0.95 / maxLineEm)));
+
+    ctx.fillStyle = textColor;
+    ctx.font = `500 ${fontSize}px 'Inter', -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const lineH = fontSize * 1.05;
+    const yStart = -(lines.length - 1) * lineH / 2;
+    lines.forEach((line, idx) => {
+      ctx.fillText(line, 0, yStart + idx * lineH);
+    });
+
+    ctx.restore();
+  }
+
+  // Clean hub: dark card fill with thin light border
+  ctx.beginPath();
+  ctx.arc(cx, cy, 58, 0, 2 * Math.PI);
+  ctx.fillStyle = '#201d17';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(243,237,225,0.3)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+// ---------- Spin logic ----------
+function spin() {
+  if (spinning) return;
+  spinning = true;
+  spinBtn.disabled = true;
+  resultEl.innerHTML = '<div class="placeholder">Spinning… 轉動中</div>';
+
+  const N = currentList.length;
+  if (N === 0) {
+    spinning = false;
+    spinBtn.disabled = false;
+    return;
+  }
+
+  const segAngle = 360 / N; // degrees
+  const targetIndex = Math.floor(Math.random() * N);
+  const jitter = (Math.random() - 0.5) * segAngle * 0.5;
+  // Rotate so the target lands at the top (under the pointer)
+  // Segment i's midpoint is at (i + 0.5) * segAngle after rotation
+  // We want (targetIndex + 0.5) * segAngle + baseAngle ≡ 0 (mod 360)
+  // => baseAngle = -(targetIndex + 0.5) * segAngle + jitter
+  const baseAngleDeg = -(targetIndex + 0.5) * segAngle - jitter;
+  const fullSpins = 6 + Math.floor(Math.random() * 3);
+  const finalAngleDeg = baseAngleDeg + fullSpins * 360;
+
+  const startAngleDeg = (currentRotation * 180) / Math.PI;
+  const startTime = performance.now();
+  const duration = 4800;
+
+  function step(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    const eased = 1 - Math.pow(1 - t, 4); // quartic ease-out
+    const angleDeg = startAngleDeg + (finalAngleDeg - startAngleDeg) * eased;
+    currentRotation = (angleDeg * Math.PI) / 180;
+    drawWheel();
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      // Normalize to [0, 2π)
+      let normalized = currentRotation % (2 * Math.PI);
+      if (normalized < 0) normalized += 2 * Math.PI;
+      currentRotation = normalized;
+      spinning = false;
+      spinBtn.disabled = false;
+      lastResultIndex = targetIndex;
+      showResult(targetIndex);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+// ---------- Result panel ----------
+function showResult(i) {
+  const r = currentList[i];
+  const orUrl = r.orUrl
+    ? r.orUrl
+    : `https://www.openrice.com/zh/hongkong/restaurants?what=${encodeURIComponent(r.name + (r.nameEn && r.nameEn !== r.name ? ' ' + r.nameEn : ''))}`;
+  const orReviews = r.orUrl
+    ? r.orUrl
+    : `https://www.openrice.com/zh/hongkong/restaurants?what=${encodeURIComponent((r.name + (r.nameEn && r.nameEn !== r.name ? ' ' + r.nameEn : '')) + ' ' + r.cuisine)}`;
+  resultEl.innerHTML = `
+    <div class="result-card">
+      <div class="result-pick-label">Today's pick · 今日推薦</div>
+      <div class="result-title">${escapeHtml(r.name)}${r.userAdded ? '<span class="user-tag">YOUR PICK</span>' : ''}</div>
+      ${r.nameEn && r.nameEn !== r.name ? `<div class="result-title-en">${escapeHtml(r.nameEn)}</div>` : ''}
+      <div class="result-cuisine">${escapeHtml(r.cuisine || '')}</div>
+      <div class="result-pills">
+        <span class="rpill"><strong>${escapeHtml(r.price)}</strong> / person</span>
+        ${r.reviews ? `<span class="rpill">${r.reviews.toLocaleString()} reviews</span>` : ''}
+        <span class="rpill">${r.distM != null ? '~' + r.distM + ' m walk' : 'distance —'}</span>
+        ${r.splurge ? '<span class="rpill" style="color:var(--accent-2);border-color:var(--accent-2)">splurge 進食</span>' : ''}
+      </div>
+      <div class="result-address">${escapeHtml(r.address || '')}</div>
+      ${r.note ? `<div class="result-note">${escapeHtml(r.note)}</div>` : ''}
+      <div class="action-row">
+        <a class="btn btn-primary" href="${orUrl}" target="_blank" rel="noopener">OpenRice 睇餐廳</a>
+        ${r.gmapUrl ? `<a class="btn" href="${escapeHtml(r.gmapUrl)}" target="_blank" rel="noopener">Google Maps 地圖</a>` : ''}
+        ${r.userAdded ? `<button class="btn" id="removePick">Remove 移除</button>` : ''}
+        <button class="btn" id="respin">Re-spin 再轉</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('respin').addEventListener('click', spin);
+  if (r.userAdded) {
+    document.getElementById('removePick').addEventListener('click', async () => {
+      if (!r.id) { applyFilter({ distMax: maxDistM, priceMax: maxPrice }); return; }
+      const btn = document.getElementById('removePick');
+      btn.disabled = true;
+      try {
+        const resp = await fetch(`${LUNCH_API}/${r.id}`, { method: 'DELETE' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        await refreshFromApi();
+        refreshClearBtn();
+        resultEl.innerHTML = '<div class="placeholder">Removed · 已移除. Press SPIN to pick again.</div>';
+      } catch (e) {
+        btn.disabled = false;
+        resultEl.innerHTML = `<div class="placeholder">Remove failed · 移除失敗: ${escapeHtml(e.message)}</div>`;
+      }
+    });
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ---------- Filters ----------
+function priceMatches(priceStr, maxP) {
+  if (maxP >= 99999) return true;
+  if (!priceStr) return false;
+  // Extract max value from price string
+  // e.g., "$101-200" → 200, "<$50" → 50, "$801+" → 801
+  const m = priceStr.match(/\d+/g);
+  if (!m) return true; // unparseable, keep visible
+  const nums = m.map(Number);
+  let maxInRange;
+  if (priceStr.startsWith('<')) maxInRange = nums[0];
+  else if (priceStr.includes('+')) maxInRange = Infinity;
+  else maxInRange = nums[nums.length - 1];
+  return maxInRange <= maxP;
+}
+
+function applyFilter(opts) {
+  const { distMax, distGt, priceMax } = opts;
+  if (distMax !== undefined) maxDistM = distMax;
+  if (priceMax !== undefined) maxPrice = priceMax;
+  currentList = restaurants.filter(r => {
+    let distOk;
+    if (r.distM == null) distOk = true;                 // unknown distance: always show
+    else if (distGt !== undefined) distOk = r.distM > distGt;
+    else if (distMax !== undefined) distOk = r.distM <= distMax;
+    else distOk = true;
+    return distOk && priceMatches(r.price, priceMax);
+  });
+  currentRotation = 0;
+  lastResultIndex = -1;
+  resultEl.innerHTML = '<div class="placeholder">Press SPIN to pick your lunch · 按 SPIN 揀午餐</div>';
+  countEl.textContent = currentList.length;
+  drawWheel();
+  renderLegend();
+}
+
+function renderLegend() {
+  legendListEl.innerHTML = currentList.map((r, i) => `
+    <div class="legend-item${r.userAdded ? ' user-added' : ''}">
+      <div class="legend-dot" style="background:${getColor(i)}"></div>
+      <div>
+        <div class="legend-name">${escapeHtml(r.name)}${r.nameEn && r.nameEn !== r.name ? ' <span style="color:var(--muted);font-weight:400;font-size:11px">' + escapeHtml(r.nameEn) + '</span>' : ''}</div>
+        <div class="legend-meta">${escapeHtml(r.cuisine || '')} · ${escapeHtml(r.price)} · ${r.distM != null ? r.distM + ' m' : '—'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function refreshFromApi() {
+  // Refetch the live list and reapply the current filter.
+  return fetch(LUNCH_API)
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(data => {
+      const items = Array.isArray(data.restaurants) ? data.restaurants : null;
+      if (!items) throw new Error('bad payload');
+      restaurants = items;
+      applyFilter({ distMax: maxDistM, priceMax: maxPrice });
+    });
+}
+
+// ---------- Form: add custom restaurant ----------
+const addBtn = document.getElementById('addBtn');
+const addForm = document.getElementById('addForm');
+const fNameZh = document.getElementById('fNameZh');
+const fCuisine = document.getElementById('fCuisine');
+const fPrice = document.getElementById('fPrice');
+const fOrUrl = document.getElementById('fOrUrl');
+const fGmapUrl = document.getElementById('fGmapUrl');
+const gmapHint = document.getElementById('gmapHint');
+const clearBtn = document.getElementById('clearBtn');
+const clearCount = document.getElementById('clearCount');
+
+// Show/hide the "clear my added spots" button based on how many exist
+function refreshClearBtn() {
+  const added = restaurants.filter(r => r.userAdded).length;
+  if (added > 0) {
+    clearBtn.style.display = '';
+    clearCount.textContent = added;
+  } else {
+    clearBtn.style.display = 'none';
+  }
+}
+clearBtn.addEventListener('click', async () => {
+  if (!confirm('Remove all your form-added spots? · 清除所有自訂餐廳？\n(The built-in list stays.)')) return;
+  clearBtn.disabled = true;
+  try {
+    const resp = await fetch(`${LUNCH_API}/clear-custom`, { method: 'POST' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    await refreshFromApi();
+    refreshClearBtn();
+  } catch (e) {
+    alert('Clear failed · 清除失敗: ' + e.message);
+  } finally {
+    clearBtn.disabled = false;
+  }
+});
+refreshClearBtn();
+
+// Distance parsed from a Google Maps link (null = unknown)
+let gmapParsedDist = null;
+
+// TAL Building (49 Austin Road, TST) — origin for distance
+const TAL = { lat: 22.3033285, lng: 114.1700055 };
+
+// Straight-line (haversine) distance in metres
+function haversineM(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Parse a full Google Maps URL -> { name, lat, lng } (any field may be missing)
+function parseGmapUrl(url) {
+  if (!url) return null;
+  const out = {};
+  // Name from /place/NAME/
+  const place = url.match(/\/place\/([^/@]+)/);
+  if (place) {
+    out.name = decodeURIComponent(place[1].replace(/\+/g, ' ')).trim();
+  }
+  // Coordinates: prefer the pin (!3dLAT!4dLNG), else the viewport (@LAT,LNG), else ?q=LAT,LNG
+  let m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (!m) m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (!m) m = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) { out.lat = parseFloat(m[1]); out.lng = parseFloat(m[2]); }
+  return (out.name || out.lat !== undefined) ? out : null;
+}
+
+// Auto-fill name & distance when a Google Maps link is entered
+function applyGmapUrl() {
+  const url = fGmapUrl.value.trim();
+  gmapParsedDist = null;
+  if (!url) { gmapHint.textContent = ''; return; }
+  const parsed = parseGmapUrl(url);
+  // Short links (maps.app.goo.gl) & non-place links can't be read in the browser
+  if (!parsed || (parsed.lat === undefined && !parsed.name)) {
+    gmapHint.className = 'field-hint muted';
+    gmapHint.textContent = /goo\.gl/.test(url)
+      ? "Short link — can't auto-read distance. Tip: open it & paste the full URL. Added anyway with distance —"
+      : "Couldn't read this link — it'll be added with distance —";
+    return;
+  }
+  if (parsed.name && !fNameZh.value.trim()) fNameZh.value = parsed.name;
+  if (parsed.lat !== undefined && parsed.lng !== undefined) {
+    gmapParsedDist = Math.round(haversineM(TAL.lat, TAL.lng, parsed.lat, parsed.lng));
+    gmapHint.className = 'field-hint';
+    gmapHint.textContent = `✓ ${parsed.name || 'location'} · ~${gmapParsedDist} m from TAL`;
+  } else {
+    gmapHint.className = 'field-hint muted';
+    gmapHint.textContent = `✓ ${parsed.name} · distance — (no coordinates in link)`;
+  }
+}
+fGmapUrl.addEventListener('change', applyGmapUrl);
+fGmapUrl.addEventListener('blur', applyGmapUrl);
+fGmapUrl.addEventListener('paste', () => setTimeout(applyGmapUrl, 0));
+
+addBtn.addEventListener('click', () => {
+  const open = addForm.classList.toggle('open');
+  addBtn.classList.toggle('open', open);
+  if (open) fGmapUrl.focus();
+});
+document.getElementById('fCancel').addEventListener('click', () => {
+  addForm.classList.remove('open');
+  addBtn.classList.remove('open');
+});
+document.getElementById('fSubmit').addEventListener('click', async () => {
+  applyGmapUrl();
+  const name = fNameZh.value.trim();
+  const price = fPrice.value;
+  if (!name) {
+    alert('Please enter a name · 請輸入名稱');
+    return;
+  }
+  const payload = {
+    name,
+    price,
+    cuisine: fCuisine.value.trim() || '未分類',
+    distM: gmapParsedDist,                       // null = unknown
+    gmapUrl: fGmapUrl.value.trim() || undefined,
+    orUrl: fOrUrl.value.trim() || undefined,
+    splurge: price === '$201+',
+    userAdded: true,
+  };
+  const btn = document.getElementById('fSubmit');
+  btn.disabled = true;
+  try {
+    const resp = await fetch(LUNCH_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+    await refreshFromApi();
+    refreshClearBtn();
+    // Clear form
+    fNameZh.value = fCuisine.value = fOrUrl.value = fGmapUrl.value = '';
+    fPrice.value = '<$200';
+    gmapParsedDist = null;
+    gmapHint.textContent = '';
+    addForm.classList.remove('open');
+    addBtn.classList.remove('open');
+    // Brief confirmation
+    resultEl.innerHTML = `<div class="placeholder">Added 「${escapeHtml(name)}」 to the wheel · 已加入</div>`;
+  } catch (e) {
+    alert('Add failed · 加入失敗: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- Events ----------
+spinBtn.addEventListener('click', spin);
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !spinning && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
+    e.preventDefault();
+    spin();
+  }
+});
+
+document.getElementById('distFilters').addEventListener('click', e => {
+  const p = e.target.closest('.pill');
+  if (!p) return;
+  document.querySelectorAll('#distFilters .pill').forEach(x => x.classList.remove('active'));
+  p.classList.add('active');
+  const opts = {
+    distMax: p.dataset.dist ? parseInt(p.dataset.dist, 10) : undefined,
+    distGt: p.dataset.gt ? parseInt(p.dataset.gt, 10) : undefined,
+    priceMax: maxPrice
+  };
+  applyFilter(opts);
+});
+document.getElementById('priceFilters').addEventListener('click', e => {
+  const p = e.target.closest('.pill');
+  if (!p) return;
+  document.querySelectorAll('#priceFilters .pill').forEach(x => x.classList.remove('active'));
+  p.classList.add('active');
+  applyFilter({ distMax: maxDistM, priceMax: parseInt(p.dataset.maxprice, 10) });
+});
+
+// ---------- Init ----------
+applyFilter({ distMax: 500, priceMax: 200 });
+
+// Fetch the live list once on load; keep FALLBACK_RESTAURANTS if the API is
+// unreachable so the wheel still works offline.
+(async function loadFromApi() {
+  try {
+    await refreshFromApi();
+    refreshClearBtn();
+  } catch (e) { /* keep FALLBACK_RESTAURANTS */ }
+})();
+</script>
+</body>
+</html>
