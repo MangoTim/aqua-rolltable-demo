@@ -115,18 +115,27 @@ pipeline {
             // CI/CD proof: spin up the scanned image, hit its HTTP endpoint,
             // and fail the build if the Lunch page's title isn't there.
             // Cleans the container up afterwards so the host stays tidy.
+            // Curl uses --retry to ride out slow Python cold starts inside
+            // a freshly-pulled base image.
             steps {
                 sh '''
                     set -eux
                     podman run -d --name aqua-rolltable-verify-${BUILD_NUMBER} \
                         --network host \
                         ${FULL_IMAGE}
-                    sleep 3
-                    curl -fsS http://192.168.147.105:8084/ | grep -qi "<title>Lunch" \
-                        || { echo "BLOCKED: lunch page title missing or page not served"; \
-                             podman logs aqua-rolltable-verify-${BUILD_NUMBER} || true; \
-                             exit 1; }
-                    echo "Webpage verified: HTTP 200 + Lunch page title"
+                    if curl -fsS --retry 15 --retry-delay 1 --retry-connrefused \
+                            http://192.168.147.105:8084/ \
+                        | grep -qi "<title>Lunch"; then
+                        echo "Webpage verified: HTTP 200 + Lunch page title"
+                    else
+                        echo "BLOCKED: lunch page title missing or page not served"
+                        echo "--- container state ---"
+                        podman inspect -f '{{.State.Status}} (exit={{.State.ExitCode}})' \
+                            aqua-rolltable-verify-${BUILD_NUMBER} || true
+                        echo "--- container logs ---"
+                        podman logs aqua-rolltable-verify-${BUILD_NUMBER} || true
+                        exit 1
+                    fi
                 '''
             }
             post {
@@ -149,12 +158,17 @@ pipeline {
                         --network host \
                         --restart=always \
                         ${FULL_IMAGE}
-                    sleep 2
-                    curl -fsS http://192.168.147.105:8084/ | grep -qi "<title>Lunch" \
-                        || { echo "BLOCKED: long-running deploy did not serve the Lunch page"; \
-                             podman logs aqua-rolltable || true; \
-                             exit 1; }
-                    echo "Long-running deploy live at http://192.168.147.105:8084/"
+                    if curl -fsS --retry 15 --retry-delay 1 --retry-connrefused \
+                            http://192.168.147.105:8084/ \
+                        | grep -qi "<title>Lunch"; then
+                        echo "Long-running deploy live at http://192.168.147.105:8084/"
+                    else
+                        echo "BLOCKED: long-running deploy did not serve the Lunch page"
+                        podman inspect -f '{{.State.Status}} (exit={{.State.ExitCode}})' \
+                            aqua-rolltable || true
+                        podman logs aqua-rolltable || true
+                        exit 1
+                    fi
                 '''
             }
         }
