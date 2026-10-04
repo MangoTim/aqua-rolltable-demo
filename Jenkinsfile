@@ -135,6 +135,29 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy (long-running)') {
+            // Stand up the verified image as a persistent service. Stops any
+            // previous long-running instance first so the port switches over
+            // cleanly to the new build. Uses --restart=always so the page
+            // survives host reboots. Lives at http://192.168.147.105:8084/.
+            steps {
+                sh '''
+                    set -eux
+                    podman rm -f aqua-rolltable || true
+                    podman run -d --name aqua-rolltable \
+                        --network host \
+                        --restart=always \
+                        ${FULL_IMAGE}
+                    sleep 2
+                    curl -fsS http://192.168.147.105:8084/ | grep -qi "<title>Lunch" \
+                        || { echo "BLOCKED: long-running deploy did not serve the Lunch page"; \
+                             podman logs aqua-rolltable || true; \
+                             exit 1; }
+                    echo "Long-running deploy live at http://192.168.147.105:8084/"
+                '''
+            }
+        }
     }
 
     post {
