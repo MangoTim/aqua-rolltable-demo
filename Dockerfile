@@ -16,11 +16,11 @@ COPY --chown=appuser:appuser serve.py lunch-roulette.html ./
 # Container needs to listen on 0.0.0.0, not loopback, so the host
 # (and Jenkins verify) can reach the page. serve.py reads this env var.
 ENV HOST=0.0.0.0 \
-    PORT=8082
+    PORT=8084
 
-EXPOSE 8082
+EXPOSE 8084
 
-# Drop root. Port 8082 is unprivileged so no setcap needed.
+# Drop root. Port 8084 is unprivileged so no setcap needed.
 USER appuser
 
 CMD ["python", "serve.py"]

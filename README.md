@@ -20,7 +20,7 @@ A small Python-served static page (`lunch-roulette.html`) — a restaurant roule
 | **Trigger** | Jenkins Poll SCM, every 5 min (`H/5 * * * *`) |
 | **Jenkinsfile** | At repo root — see source |
 | **Image** | `192.168.147.105:8082/aqua-rolltable:${BUILD_NUMBER}` |
-| **Deploy port** | `8082` (host) → container `8082` |
+| **Deploy port** | `8084` (host) → container `8084` |
 
 Push a commit to `test-v1` and within ~5 min Jenkins pulls, builds, scans, deploys, and emails you the result.
 

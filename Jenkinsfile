@@ -122,7 +122,7 @@ pipeline {
                         --network host \
                         ${FULL_IMAGE}
                     sleep 3
-                    curl -fsS http://192.168.147.105:8082/ | grep -qi "<title>Lunch" \
+                    curl -fsS http://192.168.147.105:8084/ | grep -qi "<title>Lunch" \
                         || { echo "BLOCKED: lunch page title missing or page not served"; \
                              podman logs aqua-rolltable-verify-${BUILD_NUMBER} || true; \
                              exit 1; }
@@ -148,7 +148,7 @@ pipeline {
                 body: """<h2>Aqua Security CI/CD — Build #${BUILD_NUMBER} PASSED</h2>
                     <p>Image: <code>${FULL_IMAGE}</code></p>
                     <p>Aqua scan result: <b>Image Is Compliant</b></p>
-                    <p>Deploy verify: Lunch page OK on <code>192.168.147.105:8082/</code></p>
+                    <p>Deploy verify: Lunch page OK on <code>192.168.147.105:8084/</code></p>
                     <p>Report: <a href=\"${BUILD_URL}artifact/aqua-report.html\">aqua-report.html</a><br>
                        Console: <a href=\"${BUILD_URL}console\">build console</a><br>
                        Build: <a href=\"${BUILD_URL}\">#${BUILD_NUMBER}</a></p>
