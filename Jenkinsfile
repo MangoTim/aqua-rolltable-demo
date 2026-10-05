@@ -45,13 +45,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git branch: 'test-v1',
-                    url: 'https://github.com/MangoTim/aqua-rolltable-demo.git'
-            }
-        }
-
         stage('Build Image') {
             steps {
                 sh '''
@@ -211,3 +204,4 @@ pipeline {
         }
     }
 }
+# Mon, Oct  5, 2026 11:29:10 AM
