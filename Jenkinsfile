@@ -7,7 +7,10 @@ pipeline {
         IMAGE_TAG     = "${env.BUILD_NUMBER}"
         FULL_IMAGE    = "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
         AQUA_HOST     = 'https://192.168.147.105'
-        SCANNER_IMAGE = 'registry.aquasec.com/scanner:2022.4.868'
+        // Scanner is mirrored locally — see setup notes at the top of the repo.
+        // Pulled once from registry.aquasec.com and re-tagged to the local
+        // registry so builds don't hit the public internet.
+        SCANNER_IMAGE = '192.168.147.105:8082/aqua-scanner:2022.4.868'
         AQUA_CREDS_ID = 'aqua-console'
     }
 
@@ -49,6 +52,12 @@ pipeline {
                 )]) {
                     sh '''
                         set -eux
+                        # Pre-pull the scanner from the local registry. The registry
+                        # is plain HTTP, so --tls-verify=false is required unless the
+                        # Jenkins container's /etc/containers/registries.conf.d/ has
+                        # the 192.168.147.105:8082 entry marked insecure.
+                        podman pull ${SCANNER_IMAGE} --tls-verify=false
+
                         podman run --rm --network host \
                             --security-opt label=disable --user root \
                             -v /var/run/docker.sock:/var/run/docker.sock \
