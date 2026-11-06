@@ -410,6 +410,126 @@
     justify-content: flex-end;
     margin-top: 24px;
   }
+  /* ---------- MCP status panel ---------- */
+  :root {
+    --ok: #6b8e7f;
+    --err: #b94c2d;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .mcp-card { max-width: 640px; margin-top: 28px; }
+  .mcp-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .mcp-head .result-pick-label { margin-bottom: 6px; }
+  .mcp-banner { font-size: 15px; line-height: 1.4; }
+  .mcp-banner b { font-weight: 600; color: var(--accent); }
+  .mcp-banner .host {
+    display: block;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .mcp-tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .mcp-tile {
+    background: var(--bg-soft);
+    border: 1px solid var(--border-soft);
+    border-radius: 5px;
+    padding: 12px 14px;
+    min-width: 0;
+  }
+  .mcp-tile .t-role {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .mcp-tile .t-host {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    margin-top: 4px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mcp-tile .t-state {
+    font-size: 11.5px;
+    margin-top: 6px;
+    font-family: var(--mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mcp-tile.up .t-state { color: var(--ok); }
+  .mcp-tile.down .t-state { color: var(--err); }
+  .mcp-tools {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .mcp-tools .btn { padding: 7px 12px; font-size: 11px; }
+  .mcp-tools .btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  .mcp-out {
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 4px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 280px;
+    overflow: auto;
+    color: var(--text);
+    margin: 0;
+  }
+  .mcp-out:empty { display: none; }
+  .mcp-out.err { color: var(--err); }
+  .mcp-trace {
+    margin-top: 16px;
+    border-top: 1px solid var(--border-soft);
+    padding-top: 12px;
+  }
+  .mcp-trace summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    list-style: none;
+    font-weight: 600;
+  }
+  .mcp-trace summary:hover { color: var(--text); }
+  .mcp-trace .mcp-out { margin-top: 12px; }
+  .mcp-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .mcp-foot .when {
+    font-size: 10.5px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
 </style>
 </head>
 <body>
@@ -476,6 +596,44 @@
     <div class="pointer"></div>
     <canvas id="wheel" width="540" height="540"></canvas>
     <button id="spin" class="spin-btn">SPIN</button>
+  </div>
+
+  <div class="form-card open mcp-card" id="mcpPanel">
+    <div class="mcp-head">
+      <div>
+        <div class="result-pick-label">MCP status · 站台狀態</div>
+        <div class="mcp-banner">
+          Serving from <b id="mcpRole">—</b>
+          <span class="host" id="mcpHost">checking the cluster…</span>
+        </div>
+      </div>
+      <div>
+        <span class="rpill" id="mcpToolCount">— tools</span>
+        <span class="rpill" id="mcpVersion">—</span>
+      </div>
+    </div>
+
+    <div class="mcp-tiles" id="mcpTiles"></div>
+
+    <div class="mcp-tools" id="mcpTools">
+      <button class="btn" data-tool="get_system_information">System info</button>
+      <button class="btn" data-tool="get_listening_ports">Listening ports</button>
+      <button class="btn" data-tool="get_cpu_information">CPU</button>
+      <button class="btn" data-tool="get_memory_information">Memory</button>
+      <button class="btn" data-tool="get_disk_usage">Disk</button>
+    </div>
+
+    <pre class="mcp-out" id="mcpOut"></pre>
+
+    <div class="mcp-foot">
+      <span class="when" id="mcpChecked">—</span>
+      <button class="btn" id="mcpRefresh">Refresh · 重新檢查</button>
+    </div>
+
+    <details class="mcp-trace">
+      <summary>MCP traffic · 原始 JSON-RPC</summary>
+      <pre class="mcp-out" id="mcpTrace"></pre>
+    </details>
   </div>
 
   <div id="result" class="result">
@@ -1054,8 +1212,90 @@ document.getElementById('priceFilters').addEventListener('click', e => {
   applyFilter({ distMax: maxDistM, priceMax: parseInt(p.dataset.maxprice, 10) });
 });
 
+// ---------- MCP status panel ----------
+// The page never talks to the MCP directly: the MCP server sends no CORS
+// headers, so the browser is blocked. serve.py proxies the calls on the
+// page's own origin (/api/mcp/...), which also keeps the SSH key inside
+// the MCP container.
+const mcpRoleEl = document.getElementById('mcpRole');
+const mcpHostEl = document.getElementById('mcpHost');
+const mcpTilesEl = document.getElementById('mcpTiles');
+const mcpOutEl = document.getElementById('mcpOut');
+const mcpTraceEl = document.getElementById('mcpTrace');
+const mcpCheckedEl = document.getElementById('mcpChecked');
+const mcpToolCountEl = document.getElementById('mcpToolCount');
+const mcpVersionEl = document.getElementById('mcpVersion');
+const mcpToolsEl = document.getElementById('mcpTools');
+const mcpRefreshEl = document.getElementById('mcpRefresh');
+
+function renderMcpTiles(status) {
+  mcpTilesEl.innerHTML = [status.prod, status.dr].map(t => `
+    <div class="mcp-tile ${t.ok ? 'up' : 'down'}">
+      <div class="t-role">${escapeHtml(t.role || '—')}</div>
+      <div class="t-host">${escapeHtml(t.host || '—')}</div>
+      <div class="t-state">${t.ok ? '● ' + escapeHtml(t.hostname || 'online')
+                                 : '○ ' + escapeHtml(t.error || 'unreachable')}</div>
+    </div>`).join('');
+}
+
+async function refreshMcpStatus(force) {
+  try {
+    const res = await fetch('/api/mcp/status' + (force ? '?force=1' : ''));
+    const status = await res.json();
+    if (status.error) throw new Error(status.error);
+    mcpRoleEl.textContent = status.site.role || 'unknown';
+    mcpHostEl.textContent = status.site.ok
+      ? (status.site.hostname || '') + ' · ' + (status.site.host || '')
+      : (status.site.error || 'unreachable');
+    renderMcpTiles(status);
+    mcpToolCountEl.textContent = (status.tools || []).length + ' MCP tools';
+    mcpVersionEl.textContent = status.appVersion || 'unversioned';
+    mcpCheckedEl.textContent = 'checked ' + (status.checkedAt || '');
+  } catch (e) {
+    mcpRoleEl.textContent = 'unknown';
+    mcpHostEl.textContent = 'status unavailable: ' + e.message;
+  }
+}
+
+async function callMcpTool(tool, button) {
+  mcpToolsEl.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+  if (button) button.classList.add('active');
+  mcpOutEl.classList.remove('err');
+  mcpOutEl.textContent = 'calling ' + tool + '…';
+  mcpTraceEl.textContent = '';
+  try {
+    const res = await fetch('/api/mcp/call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool: tool, args: {} }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      mcpOutEl.classList.add('err');
+      mcpOutEl.textContent = data.error || ('HTTP ' + res.status);
+      return;
+    }
+    mcpOutEl.textContent = data.text || '(no output)';
+    mcpTraceEl.textContent = JSON.stringify(data.trace || [], null, 2);
+  } catch (e) {
+    mcpOutEl.classList.add('err');
+    mcpOutEl.textContent = 'call failed: ' + e.message;
+  }
+}
+
+mcpToolsEl.addEventListener('click', e => {
+  const btn = e.target.closest('.btn[data-tool]');
+  if (btn) callMcpTool(btn.dataset.tool, btn);
+});
+mcpRefreshEl.addEventListener('click', () => refreshMcpStatus(true));
+
+// The peer tile is the thing that flips during a failover drill, so keep
+// it fresh without hammering the MCP (the server caches for a few seconds).
+setInterval(() => refreshMcpStatus(false), 10000);
+
 // ---------- Init ----------
 applyFilter({ distMax: 500, priceMax: 200 });
+refreshMcpStatus(true);
 
 // Fetch the live list once on load; keep FALLBACK_RESTAURANTS if the API is
 // unreachable so the wheel still works offline.
