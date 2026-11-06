@@ -1,44 +1,89 @@
 # aqua-rolltable-demo
 
-Lunch Rolltable packaged for the **Aqua Security CI/CD pipeline demo** on the local lab at 192.168.147.105.
+Lunch Rolltable — the **user-facing workload** of the PROD/DR MCP pipeline
+(`MangoTim/pipeline-dr`, Jenkins job `mcp-dr-pipeline`).
 
 ## What this is
 
-A small Python-served static page (`lunch-roulette.html`) — a restaurant roulette wheel for picking where to eat lunch in Tsim Sha Tsui. Wrapped in a container image so Jenkins can:
+A small Python-served static page (`lunch-roulette.html`) — a restaurant roulette
+wheel for picking where to eat lunch in Tsim Sha Tsui — plus an **MCP status
+panel** that shows which site is serving the page and what the peer site says.
 
-1. Build the image on every commit
-2. Push it to the local registry at `192.168.147.105:8082`
-3. Scan it with Aqua Security (Trivy engine)
-4. Deploy & verify the page responds on `http://192.168.147.105:8084/`
-5. Stand up the verified image as a long-running service (`--restart=always`) so the page stays up between builds
+The pipeline promotes this app as its **second artifact**: build → Aqua scan →
+Trivy scan → tarball → deploy to both sites. The page then moves with the MCP
+during a failover drill, and the panel proves it: the same image, a different
+answer.
 
-## How the CI/CD is wired
+## The MCP panel
 
-| | |
+The page shows, live:
+
+- **which site is serving** (PROD or DR) and its hostname,
+- **two cluster tiles** — PROD and DR, each answering with its own hostname or
+  `connection refused`,
+- **the five MCP gate tools** — `get_system_information`,
+  `get_listening_ports`, `get_cpu_information`, `get_memory_information`,
+  `get_disk_usage`,
+- **the raw JSON-RPC traffic** of the last call.
+
+The page never talks to the MCP directly. The MCP server sends **no CORS
+headers**, so a browser on any other origin is blocked; `serve.py` proxies the
+calls on the page's own origin instead. The app also never gets the SSH key —
+the MCP is the only privileged component.
+
+## API
+
+| Route | What it does |
 |---|---|
-| **Repo** | `https://github.com/MangoTim/aqua-rolltable-demo` |
-| **Watched branch** | `test-v1` |
-| **Trigger** | Jenkins Poll SCM, every 5 min (`H/5 * * * *`) |
-| **Jenkinsfile** | At repo root — see source |
-| **Image** | `192.168.147.105:8082/aqua-rolltable:${BUILD_NUMBER}` |
-| **Deploy port** | `8084` (host) → container `8084` |
+| `GET /` | the roulette page |
+| `GET /api/mcp/status` | `{site, prod, dr, tools, appVersion}` — the local site's identity, both cluster tiles, the tool list |
+| `GET /api/mcp/status?force=1` | the same, bypassing the server-side cache |
+| `POST /api/mcp/call` | body `{"tool": "...", "args": {...}}` → the rendered answer plus the raw JSON-RPC exchange |
 
-Push a commit to `test-v1` and within ~5 min Jenkins pulls, builds, scans, deploys, and emails you the result. The last successful build is always live at `http://192.168.147.105:8084/` — the container survives host reboots via `--restart=always`.
+`/api/mcp/call` only accepts the five panel tools (override with
+`MCP_TOOL_ALLOW`), so the page is not a general-purpose MCP proxy.
+
+## Configuration (environment variables)
+
+Set per site by Ansible; the defaults are for local dev.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `HOST` | `0.0.0.0` | bind address |
+| `PORT` | `8082` | listen port (container: `8084`) |
+| `MCP_URL` | `http://127.0.0.1:8095/mcp` | the local site's MCP endpoint |
+| `MCP_PORT` / `MCP_PATH` | `8095` / `/mcp` | used to derive the peer URL |
+| `SITE_ROLE` | — | `PROD` or `DR` |
+| `SITE_HOST` | — | the IP this site inspects itself through |
+| `SITE_EXPECT` | — | the hostname this site is expected to report |
+| `PEER_ROLE` / `PEER_HOST` / `PEER_URL` | — | the other site |
+| `APP_VERSION` | — | the image tag, shown in the panel banner |
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `lunch-roulette.html` | The roulette page itself |
-| `serve.py` | Minimal Python HTTP server (stdlib only); reads `HOST`/`PORT` env vars (containerized as `0.0.0.0:8084`, local dev defaults to `:8082`) |
-| `Dockerfile` | Python 3.12-slim-bookworm base, copies the two runtime files, runs as non-root `appuser` (Aqua `root_user` control), exposes 8084 |
-| `Jenkinsfile` | Declarative pipeline: checkout → build → push → Aqua scan → deploy/verify → email |
+| `lunch-roulette.html` | the roulette page and the MCP panel |
+| `serve.py` | the HTTP server: static files + the MCP proxy (stdlib only) |
+| `mcp_client.py` | a minimal MCP streamable-HTTP client (stdlib only — no `fastmcp`, no pip dependencies) |
+| `Dockerfile` | Python 3.12-slim-**trixie** base, runs as non-root `appuser` (Aqua `root_user` control), exposes 8084 |
+| `Jenkinsfile` | the retired single-site job — the pipeline owns `:8084` now |
+
+> **Why trixie and not bookworm?** Debian 12 ships `libsqlite3-0` and `zlib1g`
+> with two CRITICAL CVEs that have **no published fix**, so the pipeline's
+> "no CRITICAL OS CVEs" gate cannot be met on that base. Debian 13 is clean.
 
 ## Local dev (without Docker)
 
 ```bash
-HOST=127.0.0.1 PORT=8082 python serve.py
+HOST=127.0.0.1 PORT=8082 \
+MCP_URL=http://192.168.147.105:8095/mcp \
+SITE_ROLE=PROD SITE_HOST=192.168.147.105 \
+PEER_ROLE=DR PEER_HOST=192.168.147.104 \
+python serve.py
 # → http://localhost:8082/
 ```
 
-The `_tools/` Node.js scripts in the original `products/lunch roulette/` folder (used for restaurant-data curation) are intentionally NOT included in the container — they're development tooling, not runtime assets.
+The `_tools/` Node.js scripts in the original `products/lunch roulette/` folder
+(used for restaurant-data curation) are intentionally NOT included in the
+container — they're development tooling, not runtime assets.
