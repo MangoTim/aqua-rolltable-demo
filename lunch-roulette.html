@@ -484,6 +484,84 @@
     color: var(--bg);
     border-color: var(--accent);
   }
+  .mcp-tools .btn-hs {
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .mcp-tools .btn-hs:disabled { opacity: 0.55; cursor: progress; }
+  /* ---------- the MCP handshake ---------- */
+  .mcp-hs { margin-bottom: 14px; }
+  .mcp-hs:empty { display: none; }
+  .mcp-hs-lead {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .mcp-hs-lead b {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .mcp-hs-step {
+    background: var(--bg-soft);
+    border: 1px solid var(--border-soft);
+    border-radius: 5px;
+    padding: 11px 13px;
+    margin-bottom: 8px;
+  }
+  .mcp-hs-step .hs-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .mcp-hs-step .hs-n {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    border: 1px solid var(--border-soft);
+    border-radius: 3px;
+    padding: 0 5px;
+  }
+  .mcp-hs-step .hs-method {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .mcp-hs-step .hs-status {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .mcp-hs-step .hs-note {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin: 5px 0 9px;
+  }
+  .mcp-hs-step .hs-dir {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .mcp-hs-step pre {
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 230px;
+    overflow: auto;
+    margin: 0 0 7px;
+    color: var(--text);
+  }
+  .mcp-hs-step pre:last-child { margin-bottom: 0; }
   .mcp-out {
     background: var(--bg);
     border: 1px solid var(--border-soft);
@@ -621,7 +699,10 @@
       <button class="btn" data-tool="get_cpu_information">CPU</button>
       <button class="btn" data-tool="get_memory_information">Memory</button>
       <button class="btn" data-tool="get_disk_usage">Disk</button>
+      <button class="btn btn-hs" id="mcpHandshakeBtn">Handshake · 顯示握手</button>
     </div>
+
+    <div class="mcp-hs" id="mcpHandshake"></div>
 
     <pre class="mcp-out" id="mcpOut"></pre>
 
@@ -1227,6 +1308,8 @@ const mcpToolCountEl = document.getElementById('mcpToolCount');
 const mcpVersionEl = document.getElementById('mcpVersion');
 const mcpToolsEl = document.getElementById('mcpTools');
 const mcpRefreshEl = document.getElementById('mcpRefresh');
+const mcpHandshakeEl = document.getElementById('mcpHandshake');
+const mcpHandshakeBtn = document.getElementById('mcpHandshakeBtn');
 
 function renderMcpTiles(status) {
   mcpTilesEl.innerHTML = [status.prod, status.dr].map(t => `
@@ -1288,6 +1371,64 @@ mcpToolsEl.addEventListener('click', e => {
   if (btn) callMcpTool(btn.dataset.tool, btn);
 });
 mcpRefreshEl.addEventListener('click', () => refreshMcpStatus(true));
+
+// ---------- the MCP handshake ----------
+// One button that runs a whole MCP session and shows every step of it:
+// initialize -> notifications/initialized -> tools/list -> tools/call.
+// The answer alone does not convince anyone that an MCP was involved — the
+// protocol does. The tool is chosen by the server, not by the browser, so
+// this is a demonstration and not a way into the MCP.
+function renderHandshake(data) {
+  const steps = (data.steps || []).map(s => `
+    <div class="mcp-hs-step">
+      <div class="hs-head">
+        <span class="hs-n">[${s.n}]</span>
+        <span class="hs-method">${escapeHtml(s.method || s.step)}</span>
+        <span class="hs-status">HTTP ${escapeHtml(String(s.status))}${
+          s.session ? ' · session ' + escapeHtml(String(s.session)) : ''}</span>
+      </div>
+      <div class="hs-note">${escapeHtml(s.note || '')}</div>
+      <div class="hs-dir">→ request</div>
+      <pre>${escapeHtml(s.requestPreview || '')}</pre>
+      <div class="hs-dir">← response</div>
+      <pre>${escapeHtml(s.responsePreview || '(no body)')}</pre>
+    </div>`).join('');
+
+  const server = data.serverInfo || {};
+  const who = server.name ? `${escapeHtml(server.name)}${
+    server.version ? ' ' + escapeHtml(server.version) : ''}` : 'the MCP server';
+
+  mcpHandshakeEl.innerHTML = `
+    <div class="mcp-hs-lead">
+      One session against <b>${escapeHtml(data.url || '')}</b> —
+      ${escapeHtml(String(data.toolCount || 0))} tools exposed by ${who}.
+    </div>
+    ${steps}`;
+}
+
+async function showMcpHandshake() {
+  mcpHandshakeBtn.disabled = true;
+  mcpHandshakeBtn.textContent = 'Handshaking… 握手中';
+  mcpHandshakeEl.innerHTML = '';
+  try {
+    const res = await fetch('/api/mcp/handshake');
+    const data = await res.json();
+    if (!res.ok) {
+      mcpHandshakeEl.innerHTML =
+        `<div class="mcp-out err">${escapeHtml(data.error || ('HTTP ' + res.status))}</div>`;
+      return;
+    }
+    renderHandshake(data);
+  } catch (e) {
+    mcpHandshakeEl.innerHTML =
+      `<div class="mcp-out err">handshake failed: ${escapeHtml(e.message)}</div>`;
+  } finally {
+    mcpHandshakeBtn.disabled = false;
+    mcpHandshakeBtn.textContent = 'Handshake · 顯示握手';
+  }
+}
+
+mcpHandshakeBtn.addEventListener('click', showMcpHandshake);
 
 // The peer tile is the thing that flips during a failover drill, so keep
 // it fresh without hammering the MCP (the server caches for a few seconds).

@@ -249,3 +249,84 @@ def call_tool(url: str, name: str, arguments: dict, timeout: float = DEFAULT_TIM
     answer["trace"] = client.trace
     answer["serverInfo"] = client.server_info.get("serverInfo", {})
     return answer
+
+
+# ---------------------------------------------------------------- handshake
+
+# What each step of the handshake is FOR. The page shows these next to the
+# raw JSON, so the protocol is legible to someone who has never seen MCP.
+STEP_NOTES = {
+    "initialize": "open the session — the server answers with an mcp-session-id header",
+    "notifications/initialized": "confirm the session — the server answers 202 with no body",
+    "tools/list": "ask the server what it can do",
+    "tools/call": "call one tool — the SSH round-trip to the host happens here",
+}
+
+PREVIEW_LIMIT = 1400
+
+
+def _preview(payload, limit: int = PREVIEW_LIMIT) -> str:
+    """Render one JSON-RPC message as the compact text the page shows."""
+    try:
+        text = json.dumps(payload, indent=2, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        text = str(payload)
+    if len(text) > limit:
+        text = text[:limit] + "\n… (%d more characters)" % (len(text) - limit)
+    return text
+
+
+def handshake(url: str, tool: str = "get_system_information",
+              arguments: dict = None, timeout: float = DEFAULT_TIMEOUT) -> dict:
+    """Run one full MCP session and return every step of it.
+
+    The four exchanges of the MCP streamable-HTTP handshake:
+
+        1. initialize                 -> 200, the session id arrives in a header
+        2. notifications/initialized   -> 202, no body
+        3. tools/list                 -> 200, the tool descriptors
+        4. tools/call                 -> 200, the answer
+
+    Each step comes back with the request, the HTTP status, the response and
+    a short note, so the page can render the protocol and not only the result.
+
+    The tool and the arguments are fixed by the caller — nothing here comes
+    from the browser — so this demonstrates the protocol and is not a
+    general-purpose MCP proxy.
+    """
+    client = MCPClient(url, timeout=timeout)
+    client.initialize()
+    tools = client.list_tools()
+    answer = client.call_tool(tool, arguments or {})
+
+    steps = []
+    for index, entry in enumerate(client.trace, start=1):
+        response = entry["response"]
+        if entry["step"] == "tools/list":
+            # Every tool's full input schema would be pages of JSON. The names
+            # are the point of the step.
+            response = {"tools": [t.get("name") for t in tools]}
+
+        steps.append({
+            "n": index,
+            "step": entry["step"],
+            "note": STEP_NOTES.get(entry["step"], ""),
+            "method": entry["request"].get("method", ""),
+            "status": entry["status"],
+            "session": entry["session"],
+            "requestPreview": _preview(entry["request"]),
+            "responsePreview": _preview(response),
+        })
+
+    return {
+        "url": url,
+        "serverInfo": client.server_info.get("serverInfo", {}),
+        "toolCount": len(tools),
+        "tool": tool,
+        "steps": steps,
+        "answer": {
+            "text": answer.get("text", ""),
+            "structured": answer.get("structured"),
+            "isError": bool(answer.get("isError")),
+        },
+    }

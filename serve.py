@@ -6,6 +6,8 @@ Three things are served from this one port:
   /api/mcp/status      which site is serving, and what the peer site says
   /api/mcp/call        call one MCP tool and return the answer + the raw
                        JSON-RPC exchange
+  /api/mcp/handshake   run one full MCP session and return every step of it,
+                       so the page can show the protocol itself
 
 Why the proxy exists
 --------------------
@@ -77,6 +79,10 @@ TOOL_ALLOW = [
     os.environ.get("MCP_TOOL_ALLOW", ",".join(DEFAULT_TOOL_ALLOW)).split(",")
     if t.strip()
 ]
+
+# The handshake demonstration always calls this one tool. It is fixed — the
+# browser never names the tool — so it is not a way around the allowlist.
+HANDSHAKE_TOOL = "get_system_information"
 
 if not PEER_URL and PEER_HOST:
     PEER_URL = "http://%s:%s%s" % (PEER_HOST, MCP_PORT, MCP_PATH)
@@ -185,6 +191,25 @@ def site_status(force: bool = False) -> dict:
     return payload
 
 
+def mcp_handshake() -> dict:
+    """The payload behind GET /api/mcp/handshake.
+
+    One full MCP session, recorded step by step: initialize,
+    notifications/initialized, tools/list, tools/call. The panel renders
+    those four exchanges so the protocol is visible and not just the answer.
+
+    The tool is fixed here — the browser cannot choose one — so this is a
+    demonstration, not a second way into the MCP.
+    """
+    if HANDSHAKE_TOOL not in TOOL_ALLOW:
+        raise PermissionError(
+            "the handshake demonstration needs %r, which this panel does not expose"
+            % HANDSHAKE_TOOL)
+
+    args = {"host": SITE_HOST}
+    return mcp_client.handshake(MCP_URL, HANDSHAKE_TOOL, args, timeout=MCP_TIMEOUT)
+
+
 # ---------------------------------------------------------------- HTTP handler
 
 class LunchHandler(SimpleHTTPRequestHandler):
@@ -204,6 +229,15 @@ class LunchHandler(SimpleHTTPRequestHandler):
         if path == "/api/mcp/status":
             force = urllib.parse.urlparse(self.path).query == "force=1"
             return self._json(200, site_status(force=force))
+        if path == "/api/mcp/handshake":
+            try:
+                return self._json(200, mcp_handshake())
+            except PermissionError as exc:
+                return self._json(403, {"error": str(exc)})
+            except mcp_client.MCPError as exc:
+                return self._json(502, {"error": str(exc)})
+            except Exception as exc:  # noqa: BLE001
+                return self._json(502, {"error": f"{type(exc).__name__}: {exc}"})
         if path in ("/", "/index.html"):
             self.path = "/" + INDEX
         return super().do_GET()
