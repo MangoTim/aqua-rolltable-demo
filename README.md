@@ -24,7 +24,12 @@ The page shows, live:
 - **the five MCP gate tools** — `get_system_information`,
   `get_listening_ports`, `get_cpu_information`, `get_memory_information`,
   `get_disk_usage`,
-- **the raw JSON-RPC traffic** of the last call.
+- **the raw JSON-RPC traffic** of the last call,
+- **the MCP handshake, step by step** — one button runs a whole session and
+  renders each exchange: `initialize` (with the session id the server hands
+  back), `notifications/initialized` (the bodiless `202` that confirms the
+  session), `tools/list`, and the `tools/call` that carries the SSH round-trip
+  to the host.
 
 The page never talks to the MCP directly. The MCP server sends **no CORS
 headers**, so a browser on any other origin is blocked; `serve.py` proxies the
@@ -39,9 +44,12 @@ the MCP is the only privileged component.
 | `GET /api/mcp/status` | `{site, prod, dr, tools, appVersion}` — the local site's identity, both cluster tiles, the tool list |
 | `GET /api/mcp/status?force=1` | the same, bypassing the server-side cache |
 | `POST /api/mcp/call` | body `{"tool": "...", "args": {...}}` → the rendered answer plus the raw JSON-RPC exchange |
+| `GET /api/mcp/handshake` | one full MCP session, returned step by step (request, HTTP status, response, a note on what each step is for) |
 
 `/api/mcp/call` only accepts the five panel tools (override with
-`MCP_TOOL_ALLOW`), so the page is not a general-purpose MCP proxy.
+`MCP_TOOL_ALLOW`), so the page is not a general-purpose MCP proxy. The
+handshake route names its tool in `serve.py`, not in the browser, so it is a
+demonstration of the protocol rather than a second way into the MCP.
 
 ## Configuration (environment variables)
 
